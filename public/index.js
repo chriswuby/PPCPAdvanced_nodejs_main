@@ -1,6 +1,8 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import 'dotenv/config';
+import path from 'path'; // Import the path module
+
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
@@ -154,9 +156,9 @@ app.post("/get_client_token", (req, res) => {
 
 // Helper / Utility functions
 
-//Servers the index.html file
+//Servers the index.ejs file
 app.get('/', (req, res) => {
-    res.sendFile(process.cwd() + '/index.html');
+    res.sendFile(process.cwd() + '/views/index.ejs');
 });
 //Servers the style.css file
 app.get('/style.css', (req, res) => {
