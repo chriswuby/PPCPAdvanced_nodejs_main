@@ -49,7 +49,7 @@ let handle_click = (event) => {
 }
 document.addEventListener("click", handle_click);
 const paypal_sdk_url = "https://www.paypal.com/sdk/js";
-const client_id = "AWfFVXSJTdK-CsD9DSUpqLjSJhBInOfVJn-gFn8wIT1SM6Ca7LoTM_SVd00vYrkC_Vzzdq1AXqNWIzxr";
+const client_id = "AZmHKp_3DOsYNwMifWL2mDO4hYfAHXhwtzs6qxy-qUSaKE_oIIL6X4XP92NXvoorGrolPXD3PiUEcDVF";
 const currency = "USD";
 const intent = "capture";
 
@@ -69,6 +69,12 @@ let display_success_message = (object) => {
     document.getElementById("card-form").classList.add("hide");
 }
 
+function renderNonFastlaneMemberExperience() {
+  // Render the non-Fastlane member experience
+  console.log('Non-Fastlane member experience');
+  // Proceed with the non-Fastlane member experience
+}
+
 //PayPal Code
 is_user_logged_in()
 .then(() => {
@@ -76,175 +82,251 @@ is_user_logged_in()
 })
 .then((client_token) => {
     //https://developer.paypal.com/sdk/js/configuration/#link-queryparameters
-    return script_to_head({"src": paypal_sdk_url + "?client-id=" + client_id + "&enable-funding=venmo&currency=" + currency + "&intent=" + intent + "&components=buttons,hosted-fields", "data-client-token": client_token}) //https://developer.paypal.com/sdk/js/configuration/#link-configureandcustomizeyourintegration
+    return script_to_head({
+        "src": paypal_sdk_url + "?client-id=" + client_id + "&enable-funding=venmo&currency=" + currency + "&intent=" + intent + "&components=buttons,hosted-fields,fastlane",
+        "data-client-token": client_token
+    }) //https://developer.paypal.com/sdk/js/configuration/#link-configureandcustomizeyourintegration
 })
 .then(() => {
     //Handle loading spinner
     document.getElementById("loading").classList.add("hide");
     document.getElementById("content").classList.remove("hide");
-    let paypal_buttons = paypal.Buttons({ // https://developer.paypal.com/sdk/js/reference
-        onClick: (data) => { // https://developer.paypal.com/sdk/js/reference/#link-oninitonclick
-            //Custom JS here
-        },
-        style: { //https://developer.paypal.com/sdk/js/reference/#link-style
-            shape: 'rect',
-            color: 'gold',
-            layout: 'vertical',
-            label: 'paypal'
-        },
 
-        createOrder: function(data, actions) { //https://developer.paypal.com/docs/api/orders/v2/#orders_create
-            return fetch("http://localhost:3004/create_order", {
-                method: "post", headers: { "Content-Type": "application/json; charset=utf-8" },
-                body: JSON.stringify({ "intent": intent })
-            })
-            .then((response) => response.json())
-            .then((order) => { return order.id; });
-        },
+    // Initialize the Fastlane component
+    fetchClientToken()
+      .then((client_token) => {
+        script_to_head({
+          "src": paypal_sdk_url + "?client-id=" + client_id + "&enable-funding=venmo&currency=" + currency + "&intent=" + intent + "&components=buttons,hosted-fields,fastlane",
+          "data-client-token": client_token
+        }).then(() => {
+            const fastlane = window.paypal.Fastlane({
+                modules: ['identity', 'vaulting', 'payments']
+                // Add any additional options here
+            });
 
-        onApprove: function(data, actions) {
-          // Remove or comment out the existing order completion logic
-          // order_id = data.orderID;
-          // console.log(data);
-          // Existing fetch call to /complete_order commented out or removed
-          
-          // Insert the new vaulting logic
-          return actions.order.get().then(function(orderDetails) {
-          // Send a request to your server to handle the vaulting process
-          return fetch("http://localhost:3004/vault_payment_method", {
-          method: "post",
-          headers: {
-          "Content-Type": "application/json; charset=utf-8"
-          },
-          body: JSON.stringify({
-          "orderID": data.orderID, // Send the order ID to your server
-          "payerID": data.payerID, // Send the payer ID to your server
-          // Include any additional details your server implementation requires
-          })
-          })
-          .then(response => response.json())
-          .then(data => {
-          // Handle response from your server
-          console.log(data);
-          display_success_message({
-          message: "Payment method saved for future use.",
-          details: data
-          });
-          })
-          .catch((error) => {
-          console.log(error);
-          display_error_alert();
-          });
-          });
-          },
+        // Set the SDK to run in sandbox mode
+        window.localStorage.setItem("fastlaneEnv", "sandbox");
 
-        onCancel: function (data) {
-            document.getElementById("alerts").innerHTML = `<div class="ms-alert ms-action2 ms-small"><span class="ms-close"></span><p>Order cancelled!</p>  </div>`;
-        },
+       // Set the locale if necessary
+        fastlane.setLocale('en_us');
 
-        onError: function(err) {
-            console.log(err);
-        }
-    });
-    paypal_buttons.render('#payment_options');
-    //Hosted Fields
-    if (paypal.HostedFields.isEligible()) {
-        // Renders card fields
-        paypal_hosted_fields = paypal.HostedFields.render({
-          // Call your server to set up the transaction
-          createOrder: () => {
-            return fetch("http://localhost:3004/create_order", {
-                method: "post", headers: { "Content-Type": "application/json; charset=utf-8" },
-                body: JSON.stringify({ "intent": intent })
-            })
-            .then((response) => response.json())
-            .then((order) => { order_id = order.id; return order.id; });
-          },
-          styles: {
-            '.valid': {
-              color: 'green'
-            },
-            '.invalid': {
-              color: 'red'
-            },
-            'input': {
-                'font-size': '16pt',
-                'color': '#ffffff'
-            },
-          },
-          fields: {
-            number: {
-              selector: "#card-number",
-              placeholder: "4111 1111 1111 1111"
-            },
-            cvv: {
-              selector: "#cvv",
-              placeholder: "123"
-            },
-            expirationDate: {
-              selector: "#expiration-date",
-              placeholder: "MM/YY"
-            }
-          }
-        }).then((card_fields) => {
-         document.querySelector("#card-form").addEventListener("submit", (event) => {
-            event.preventDefault();
-            document.querySelector("#card-form").querySelector("input[type='submit']").setAttribute("disabled", "");
-            document.querySelector("#card-form").querySelector("input[type='submit']").value = "Loading...";
-            card_fields
-              .submit(
-                //Customer Data BEGIN
-                //This wasn't part of the video guide originally, but I've included it here
-                //So you can reference how you could send customer data, which may
-                //be a requirement of your project to pass this info to card issuers
-                {
-                  // Cardholder's first and last name
-                  cardholderName: "Raúl Uriarte, Jr.",
-                  // Billing Address
-                  billingAddress: {
-                    // Street address, line 1
-                    streetAddress: "123 Springfield Rd",
-                    // Street address, line 2 (Ex: Unit, Apartment, etc.)
-                    extendedAddress: "",
-                    // State
-                    region: "AZ",
-                    // City
-                    locality: "CHANDLER",
-                    // Postal Code
-                    postalCode: "85224",
-                    // Country Code
-                    countryCodeAlpha2: "US",
-                  },
+        // Fastlane integration
+       const emailInput = document.getElementById('email');
+       const cardForm = document.getElementById('card-form');
+
+       cardForm.addEventListener('submit', async (event) => {
+           event.preventDefault();
+            const email = emailInput.value;
+  
+            try {
+              const { customerContextId } = await fastlane.identity.lookupCustomerByEmail(email);
+  
+              let renderFastlaneMemberExperience = false;
+  
+               if (customerContextId) {
+                    // Email is associated with a Fastlane member or a PayPal member,
+                    // send customerContextId to trigger the authentication flow.
+                  const { authenticationState, profileData } = await fastlane.identity.triggerAuthenticationFlow(customerContextId);
+  
+                     if (authenticationState === "succeeded") {
+                       // Fastlane member successfully authenticated themselves
+                      // profileData contains their profile details
+                      renderFastlaneMemberExperience = true;
+  
+                      const name = profileData.name;
+                      const shippingAddress = profileData.shippingAddress;
+                      const card = profileData.card;
+  
+                     console.log('Fastlane member authenticated:', name, shippingAddress, card);
+                       // Implement your Fastlane member experience logic here
+                    } else {
+                       // Member failed or cancelled to authenticate. Treat them as a guest payer
+                      renderFastlaneMemberExperience = false;
+                     console.log('Fastlane member authentication failed or cancelled');
+                    }
+                } else {
+                   // No profile found with this email address. This is a guest payer
+                    renderFastlaneMemberExperience = false;
+                   console.log('Guest payer');
                 }
-                //Customer Data END
-              )
-              .then(() => {
-                return fetch("http://localhost:3004/complete_order", {
+  
+                if (renderFastlaneMemberExperience) {
+                    // Render the Fastlane member experience
+                    console.log('Rendering Fastlane member experience');
+                    // Implement your Fastlane member experience logic here
+                } else {
+                    // Render the non-Fastlane member experience
+                    renderNonFastlaneMemberExperience();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // Handle error scenarios
+            }
+       });
+
+        let paypal_buttons = paypal.Buttons({ // https://developer.paypal.com/sdk/js/reference
+            onClick: (data) => { // https://developer.paypal.com/sdk/js/reference/#link-oninitonclick
+                //Custom JS here
+            },
+            style: { //https://developer.paypal.com/sdk/js/reference/#link-style
+                shape: 'rect',
+                color: 'gold',
+                layout: 'vertical',
+               label: 'paypal'
+            },
+
+            createOrder: function(data, actions) { //https://developer.paypal.com/docs/api/orders/v2/#orders_create
+                return fetch("http://localhost:3004/create_order", {
                     method: "post", headers: { "Content-Type": "application/json; charset=utf-8" },
-                    body: JSON.stringify({
-                        "intent": intent,
-                        "order_id": order_id,
-                        "email": document.getElementById("email").value
-                    })
+                    body: JSON.stringify({ "intent": intent })
                 })
                 .then((response) => response.json())
-                .then((order_details) => {
-                    display_success_message({"order_details": order_details, "paypal_buttons": paypal_buttons});
-                 })
-                 .catch((error) => {
-                    console.log(error);
-                    display_error_alert();
-                 });
-              })
-              .catch((err) => {
-                console.log(err);
-                reset_purchase_button();
-                display_error_alert();
+                .then((order) => { return order.id; });
+            },
+
+            onApprove: function(data, actions) {
+              // Remove or comment out the existing order completion logic
+              // order_id = data.orderID;
+              // console.log(data);
+             // Existing fetch call to /complete_order commented out or removed
+          
+              // Insert the new vaulting logic
+              return actions.order.get().then(function(orderDetails) {
+             // Send a request to your server to handle the vaulting process
+             return fetch("http://localhost:3004/vault_payment_method", {
+             method: "post",
+             headers: {
+             "Content-Type": "application/json; charset=utf-8"
+             },
+             body: JSON.stringify({
+              "orderID": data.orderID, // Send the order ID to your server
+              "payerID": data.payerID, // Send the payer ID to your server
+             // Include any additional details your server implementation requires
+             })
+             })
+              .then(response => response.json())
+              .then(data => {
+             // Handle response from your server
+              console.log(data);
+              display_success_message({
+             message: "Payment method saved for future use.",
+              details: data
               });
-          });
+              })
+              .catch((error) => {
+             console.log(error);
+             display_error_alert();
+             });
+             });
+             },
+
+            onCancel: function (data) {
+                document.getElementById("alerts").innerHTML = `<div class="ms-alert ms-action2 ms-small"><span class="ms-close"></span><p>Order cancelled!</p>  </div>`;
+            },
+
+          onError: function(err) {
+                console.log(err);
+           }
         });
-      }
-})
-.catch((error) => {
-    reset_purchase_button();
-});
+       paypal_buttons.render('#payment_options');
+        //Hosted Fields
+        if (paypal.HostedFields.isEligible()) {
+            // Renders card fields
+            paypal_hosted_fields = paypal.HostedFields.render({
+              // Call your server to set up the transaction
+              createOrder: () => {
+                return fetch("http://localhost:3004/create_order", {
+                    method: "post", headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({ "intent": intent })
+                })
+                .then((response) => response.json())
+               .then((order) => { order_id = order.id; return order.id; });
+              },
+             styles: {
+                '.valid': {
+                  color: 'green'
+                },
+                '.invalid': {
+                  color: 'red'
+                },
+               'input': {
+                    'font-size': '16pt',
+                   'color': '#ffffff'
+                },
+              },
+             fields: {
+                number: {
+                 selector: "#card-number",
+                 placeholder: "4111 1111 1111 1111"
+                },
+               cvv: {
+                 selector: "#cvv",
+                 placeholder: "123"
+                },
+                expirationDate: {
+                  selector: "#expiration-date",
+                 placeholder: "MM/YY"
+                }
+              }
+           }).then((card_fields) => {
+             document.querySelector("#card-form").addEventListener("submit", (event) => {
+                event.preventDefault();
+                document.querySelector("#card-form").querySelector("input[type='submit']").setAttribute("disabled", "");
+               document.querySelector("#card-form").querySelector("input[type='submit']").value = "Loading...";
+               card_fields
+                  .submit(
+                    //Customer Data BEGIN
+                    //This wasn't part of the video guide originally, but I've included it here
+                   //So you can reference how you could send customer data, which may
+                    //be a requirement of your project to pass this info to card issuers
+                   {
+                     // Cardholder's first and last name
+                      cardholderName: "Raúl Uriarte, Jr.",
+                     // Billing Address
+                     billingAddress: {
+                        // Street address, line 1
+                        streetAddress: "123 Springfield Rd",
+                       // Street address, line 2 (Ex: Unit, Apartment, etc.)
+                       extendedAddress: "",
+                        // State
+                        region: "AZ",
+                        // City
+                        locality: "CHANDLER",
+                        // Postal Code
+                       postalCode: "85224",
+                       // Country Code
+                       countryCodeAlpha2: "US",
+                      },
+                    }
+                    //Customer Data END
+                  )
+                 .then(() => {
+                    return fetch("http://localhost:3004/complete_order", {
+                        method: "post", headers: { "Content-Type": "application/json; charset=utf-8" },
+                        body: JSON.stringify({
+                            "intent": intent,
+                            "order_id": order_id,
+                            "email": document.getElementById("email").value
+                        })
+                   })
+                   .then((response) => response.json())
+                   .then((order_details) => {
+                       display_success_message({"order_details": order_details, "paypal_buttons": paypal_buttons});
+                     })
+                     .catch((error) => {
+                       console.log(error);
+                        display_error_alert();
+                    });
+                  })
+                 .catch((err) => {
+                   console.log(err);
+                    reset_purchase_button();
+                   display_error_alert();
+                 });
+              });
+           });
+          }
+      })
+    .catch((error) => {
+        reset_purchase_button();
+    })})});
