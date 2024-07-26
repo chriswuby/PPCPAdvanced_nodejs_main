@@ -8,9 +8,24 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/minstyle.io@2.0.1/dist/css/minstyle.io.min.css">
     <link rel="stylesheet" type="text/css" href="/style.css">
     <script src="/script.js"></script>
+    <script
+      src="https://www.paypal.com/sdk/js?client-id=<%= locals.client_id %>&components=buttons,fastlane"
+      data-sdk-client-token="<%= locals.sdkClientToken %>"
+      data-client-metadata-id="<%= locals.dataClientMetadataId %>">
+    </script>
     <script>
-      const clientId = '<%= client_id %>';
-      document.write(`<script src="https://www.paypal.com/sdk/js?client-id=${clientId}&components=buttons,accelerated-checkout"><\/script>`);
+      // Initialize the Fastlane component
+      (async () => {
+        const fastlane = await window.paypal.Fastlane({
+          // Add any additional options here
+        });
+
+        // Set the SDK to run in sandbox mode
+        window.localStorage.setItem("fastlaneEnv", "sandbox");
+
+        // Set the locale if necessary
+        fastlane.setLocale('en_us');
+      })();
     </script>
   </head>
   <body>
@@ -36,19 +51,19 @@
               <form class="row ms-form-group" id="card-form">
                 <div>
                   <label for="card-number">Card Number</label>
-                  <div class="div_input" type="text" id="card-number"></div>
+                  <div class="div_input" type="text" id="card-number" autocomplete="cc-number"></div>></div>
                 </div>
                 <div class="col-md mb-2">
                   <label for="expiration-date">Expiration Date</label>
-                  <div id="expiration-date" class="div_input"></div>
+                  <div id="expiration-date" class="div_input" autocomplete="cc-exp"></div>></div>
                 </div>
                 <div class="col-md mb-2">
                   <label for="cvv">Security Code</label>
-                  <div id="cvv" class="div_input"></div>
+                  <div id="cvv" class="div_input" autocomplete="cc-csc"></div>></div>
                 </div>
                 <div>
                   <label for="email">Email</label>
-                  <input value placeholder="username@email.com" type="email" id="email" class="div_input" required>
+                  <input value placeholder="username@email.com" type="email" id="email" class="div_input" autocomplete="email" required>
                 </div>
                 <div><input class="ms-fullwidth mt-2 ms-medium" type="submit" value="Purchase"></div>
               </form>
